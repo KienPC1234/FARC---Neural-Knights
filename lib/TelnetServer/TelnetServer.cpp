@@ -98,9 +98,11 @@ void handleTelnet() {
 void logMessage(LogLevel level, const String& msg) {
   String output = getLogPrefix(level) + msg;
   if (isDevMode && isTelnetInitialized && telnet.isConnected()) {
-    telnet.println(output); // Use println to ensure single newline
+    telnet.println(output);
   }
-  Serial.println(output); // Always print to Serial
+  else{
+    Serial.println(output);
+  }
 }
 
 void logPrintf(LogLevel level, const char* fmt, ...) {
@@ -112,7 +114,9 @@ void logPrintf(LogLevel level, const char* fmt, ...) {
 
   String msg = getLogPrefix(level) + String(buffer);
   if (isDevMode && isTelnetInitialized && telnet.isConnected()) {
-    telnet.println(msg); // Use println to ensure single newline
+    telnet.println(msg); 
   }
-  Serial.println(msg); // Always print to Serial
+  else{
+    Serial.println(msg);
+  }
 }
