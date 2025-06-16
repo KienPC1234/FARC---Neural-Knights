@@ -289,5 +289,9 @@
   "C_Cpp_Runner.useLeakSanitizer": false,
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
-  "C_Cpp_Runner.msvcSecureNoWarnings": false
+  "C_Cpp_Runner.msvcSecureNoWarnings": false,
+  "cmake.sourceDirectory": "C:/Users/kienp/Documents/Robot/FARC - Neural Knights/lib/Adafruit_BusIO-1.17.1",
+  "files.associations": {
+    "string": "cpp"
+  }
 }
