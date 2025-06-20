@@ -24,6 +24,7 @@ const float trackWidth = 0.26;       // 26cm
 const float wheelDiameter = 0.096;   // 96mm
 
 // Motor correction factors
+// These are used to balance the speed between motors
 const float motor1Correction = 0.95; // MT1 - right bottom
 const float motor2Correction = 1.05; // MT2 - right top
 const float motor3Correction = 1.05; // MT3 - left top
