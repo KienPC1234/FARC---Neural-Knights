@@ -105,6 +105,9 @@ void setMotorSpeedSmooth(int motorNum, const int channels[2], float speed) {
   }
 }
 
+
+const float omegaBoost = 1.7; 
+
 // Mecanum drive control
 void mecanumDrivePWM(float vx, float vy, float omega, int speedLevel) {
   float L = wheelBase;
@@ -113,6 +116,7 @@ void mecanumDrivePWM(float vx, float vy, float omega, int speedLevel) {
 
   // Invert joystick directions
   vx = -vx;
+  omega *= omegaBoost;
   omega = -omega;
 
   // Calculate wheel speeds
@@ -144,13 +148,6 @@ void mecanumDrivePWM(float vx, float vy, float omega, int speedLevel) {
   setMotorSpeedSmooth(2, motor2Channels, vMT2);
   setMotorSpeedSmooth(3, motor3Channels, vMT3);
   setMotorSpeedSmooth(4, motor4Channels, vMT4);
-
-  // Debug
-  Serial.print("SPD "); Serial.print(scale * 100);
-  Serial.print(" | MT1: "); Serial.print(vMT1, 2);
-  Serial.print(" MT2: "); Serial.print(vMT2, 2);
-  Serial.print(" MT3: "); Serial.print(vMT3, 2);
-  Serial.print(" MT4: "); Serial.println(vMT4, 2);
 }
 
 // Mecanum control task (runs on separate core)
@@ -197,7 +194,7 @@ void servo5Task(void *pvParameters) {
   while (1) {
     if (isServo5Held) {
       pwm_servo.setPWM(5, 0, 348); // Backward pulse
-      vTaskDelay(pdMS_TO_TICKS(1000));
+      vTaskDelay(pdMS_TO_TICKS(1500));
       pwm_servo.setPWM(5, 0, CONTINUOUS_STOP_PULSE);
       vTaskDelay(pdMS_TO_TICKS(1000));
       Serial.println("Servo 5 Backward");
@@ -244,7 +241,7 @@ void setup() {
     if (servos[i].isContinuous) {
       pwm_servo.setPWM(servos[i].pin, 0, CONTINUOUS_STOP_PULSE);
     } else {
-      pwm_servo.setPWM(servos[i].pin, 0, map(servos[i].value, 0, 180, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
+      pwm_servo.setPWM(servos[i].pin, 0, 0);
     }
   }
 
@@ -415,6 +412,8 @@ void loop() {
     }
 
     if (ps2x.ButtonPressed(PSB_CROSS)) {
+      pwm_servo.setPWM(5, 0, 348);
+      Serial.println("Servo 5 set to Backward pulse");
       servos[0].value = 5;
       pwm_servo.setPWM(6, 0, map(servos[0].value, 0, 180, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
       Serial.println("Servo 6 set to 5°");
@@ -426,13 +425,18 @@ void loop() {
       servos[0].value = 70;
       pwm_servo.setPWM(6, 0, map(servos[0].value, 0, 180, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
       Serial.println("Servo 6 set to 70°");
+      pwm_servo.setPWM(5, 0, CONTINUOUS_STOP_PULSE);
+      Serial.println("Servo 5 stopped");
       delay(500);
       pwm_servo.setPWM(6, 0, 0);
       pwm_servo.setPWM(7, 0, 0);
       Serial.println("Both servos released");
+      
     }
 
     if (ps2x.ButtonPressed(PSB_SQUARE)) {
+      pwm_servo.setPWM(5, 0, 348);
+      Serial.println("Servo 5 set to Backward pulse");
       servos[0].value = 5;
       pwm_servo.setPWM(6, 0, map(servos[0].value, 0, 180, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
       Serial.println("Servo 6 set to 5°");
@@ -445,10 +449,6 @@ void loop() {
       pwm_servo.setPWM(6, 0, map(servos[0].value, 0, 180, SERVO_MAX_PULSE, SERVO_MAX_PULSE));
       Serial.println("Servo 6 set to 70°");
       delay(500);
-      isServo5Held = true;
-      xTaskCreate(servo5Task, "Servo5Task", 2048, NULL, 1, &servo5TaskHandle);
-      Serial.println("Servo 5 starting Backward cycle task");
-      delay(500);
       servos[0].value = 10;
       pwm_servo.setPWM(6, 0, map(servos[0].value, 0, 40, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
       Serial.println("Servo 6 set to 10°");
@@ -456,19 +456,8 @@ void loop() {
       servos[1].value = 40;
       pwm_servo.setPWM(7, 0, map(servos[1].value, 30, 120, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
       Serial.println("Servo 7 set to 40°");
-      delay(500);
-      isServo5Held = false;
-      if (servo5TaskHandle != NULL) {
-        vTaskDelete(servo5TaskHandle);
-        servo5TaskHandle = NULL;
-      }
-      pwm_servo.setPWM(5, 0, 348);
-      delay(200);
-      pwm_servo.setPWM(5, 0, CONTINUOUS_STOP_PULSE);
+      delay(500);pwm_servo.setPWM(5, 0, CONTINUOUS_STOP_PULSE);
       Serial.println("Servo 5 stopped");
-      servos[0].value = 23;
-      pwm_servo.setPWM(6, 0, map(servos[0].value, 0, 40, SERVO_MIN_PULSE, SERVO_MAX_PULSE));
-      Serial.println("Servo 6 set to 23°");
       delay(500);
     }
 
