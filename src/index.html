@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mecanum Robot Sim with RPM</title>
+  <style>
+    canvas { background: #eee; display: block; margin: 20px auto; border: 2px solid #000; }
+    .controls { text-align: center; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<canvas id="canvas" width="600" height="600"></canvas>
+<div class="controls">
+  <p>Joystick 1 (movement): Drag inside left circle</p>
+  <p>Joystick 2 (rotation): Drag inside right circle</p>
+</div>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const wheelBase = 0.18;
+const trackWidth = 0.26;
+const wheelDiameter = 0.096;
+const rpmFront = 300.0;
+const rpmRear = 319.0;
+
+let robot = {
+  x: 300,
+  y: 300,
+  angle: 0,
+  vx: 0,
+  vy: 0,
+  omega: 0,
+  size: 60
+};
+
+let joystick1 = {x: 100, y: 500, dx: 0, dy: 0, active: false};
+let joystick2 = {x: 500, y: 500, dx: 0, dy: 0, active: false};
+
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  if (Math.hypot(mx - joystick1.x, my - joystick1.y) < 40) joystick1.active = true;
+  if (Math.hypot(mx - joystick2.x, my - joystick2.y) < 40) joystick2.active = true;
+});
+canvas.addEventListener("mouseup", () => {
+  joystick1.active = joystick2.active = false;
+  joystick1.dx = joystick1.dy = joystick2.dx = joystick2.dy = 0;
+});
+canvas.addEventListener("mousemove", e => {
+  if (!joystick1.active && !joystick2.active) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  if (joystick1.active) {
+    joystick1.dx = Math.max(-30, Math.min(30, mx - joystick1.x));
+    joystick1.dy = Math.max(-30, Math.min(30, my - joystick1.y));
+  }
+  if (joystick2.active) {
+    joystick2.dx = Math.max(-30, Math.min(30, mx - joystick2.x));
+  }
+});
+
+function mecanumDrive(vx, vy, omega) {
+  const L = wheelBase, W = trackWidth;
+  const r = (L + W) / 2;
+
+  let vMT1 = vy - vx - omega * r; // Bottom right (\) NGƯỢC CHIỀU
+  let vMT2 = vy + vx + omega * r; // Top right (/) NGƯỢC CHIỀU
+  let vMT3 = vy - vx + omega * r; // Top left (\) NGƯỢC CHIỀU
+  let vMT4 = vy + vx - omega * r; // Bottom left (/) ĐÚNG CHIỀU
+
+  const maxVal = Math.max(1, Math.abs(vMT1), Math.abs(vMT2), Math.abs(vMT3), Math.abs(vMT4));
+  vMT1 /= maxVal;
+  vMT2 /= maxVal;
+  vMT3 /= maxVal;
+  vMT4 /= maxVal;
+
+  // Apply direction corrections (reverse motors if needed)
+  vMT1 = -vMT1; // MT1 (bottom right) reversed
+  vMT2 = -vMT2; // MT2 (top right) reversed
+  vMT3 = -vMT3; // MT3 (top left) reversed
+  // MT4 is correct
+
+  const maxFront = rpmFront * wheelDiameter * Math.PI / 60;
+  const maxRear  = rpmRear * wheelDiameter * Math.PI / 60;
+
+  const speedMT1 = vMT1 * maxRear;
+  const speedMT2 = vMT2 * maxFront;
+  const speedMT3 = vMT3 * maxFront;
+  const speedMT4 = vMT4 * maxRear;
+
+  return {speedMT1, speedMT2, speedMT3, speedMT4};
+}
+
+function drawJoystick(joy) {
+  ctx.beginPath();
+  ctx.arc(joy.x, joy.y, 40, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(joy.x + joy.dx, joy.y + joy.dy, 10, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const vx = joystick1.dx / 30;
+  const vy = -joystick1.dy / 30;
+  const omega = joystick2.dx / 30;
+  const {speedMT1, speedMT2, speedMT3, speedMT4} = mecanumDrive(vx, vy, omega);
+
+  // Robot update
+  robot.angle += omega * 0.05;
+  const cosA = Math.cos(robot.angle);
+  const sinA = Math.sin(robot.angle);
+  robot.x += (vx * cosA - vy * sinA) * 2;
+  robot.y += (vx * sinA + vy * cosA) * 2;
+
+  // Draw robot
+  ctx.save();
+  ctx.translate(robot.x, robot.y);
+  ctx.rotate(robot.angle);
+  ctx.fillStyle = '#0077cc';
+  ctx.fillRect(-robot.size/2, -robot.size/2, robot.size, robot.size);
+  ctx.fillStyle = '#ff3333';
+  ctx.fillRect(-5, -robot.size/2, 10, 10);
+  ctx.restore();
+
+  // Draw text output
+  ctx.fillStyle = "black";
+  ctx.fillText(`MT1 (BR \): ${speedMT1.toFixed(2)} m/s`, 10, 20);
+  ctx.fillText(`MT2 (TR /): ${speedMT2.toFixed(2)} m/s`, 10, 40);
+  ctx.fillText(`MT3 (TL \): ${speedMT3.toFixed(2)} m/s`, 10, 60);
+  ctx.fillText(`MT4 (BL /): ${speedMT4.toFixed(2)} m/s`, 10, 80);
+
+  // Joysticks
+  drawJoystick(joystick1);
+  drawJoystick(joystick2);
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
